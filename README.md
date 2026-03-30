@@ -323,32 +323,6 @@ Traders alternate between two modes on successive runs:
 
 This mirrors how real fund managers divide their attention, and keeps each LLM run focused rather than trying to do everything at once.
 
----
-
-## Understanding the Prompts
-
-Each trader gets three layers of prompt context on every run:
-
-1. **System prompt** (`trader_instructions()`) — sets identity, tells the agent its own name, which tools to use, and to send a push notification + write a summary after trading.
-
-2. **User message** (`trade_message()` or `rebalance_message()`) — injected fresh each run with: the trader's full strategy text, the current account state (balance, holdings, all transactions), and the current datetime. The LLM has no memory between runs — everything it needs to know comes from here.
-
-3. **Tool descriptions** — auto-injected by the SDK. Every MCP tool's name and docstring becomes part of the prompt. The docstring is the prompt — this is why tool descriptions are written carefully.
-
----
-
-## The Knowledge Graph
-
-The Researcher agent has persistent memory via a knowledge graph (one LibSQL file per trader stored in `memory/[name].db`).
-
-Over successive runs, the Researcher builds up:
-- **Entities** — companies, stocks, websites it has researched
-- **Relations** — "NVDA competes with AMD", "Warren researched NVDA"
-- **Useful URLs** — investor relations pages, news sources it found valuable
-
-On each new run, the Researcher queries its graph first before searching the web — so it gets smarter over time instead of starting from scratch every hour. This is stored separately from `accounts.db` and managed entirely by the `mcp-memory-libsql` MCP server.
-
----
 
 ## The Live Dashboard
 
@@ -485,30 +459,11 @@ node_path = "/home/user/.nvm/versions/node/v22.18.0/bin"
 
 ## Important Notes
 
-**Monitor your API usage.** This project runs on a loop and makes LLM calls, web searches, and market data requests every hour. Watch your usage on:
-- Google AI Studio (Gemini)
-- Tavily dashboard
-- Polygon.io dashboard
 
 **The trading is simulated but prices are real.** Trades execute against real Polygon.io stock prices. The money is not real — each trader starts with $10,000 in the simulation database.
 
 **Stop the engine when done.** Press `Ctrl+C` in the trading_floor.py terminal to stop the loop. The dashboard can keep running independently.
 
----
-
-## Key Design Decisions
-
-| Decision | Reasoning |
-|----------|-----------|
-| SQLite over Postgres | Low write frequency (4 traders, few trades/hour), single machine, zero ops overhead |
-| MCP stdio over HTTP | Simpler local development — no ports, no auth, no network config needed |
-| Researcher as sub-agent tool | Keeps Trader's context window clean — raw search results go to Researcher, clean summary comes back |
-| asyncio over threads | All waiting is I/O-bound (API calls, subprocess replies) — async is simpler and equally fast |
-| Gemini via OpenAI-compatible endpoint | Lower cost; the OpenAI chat completions format is now a de facto standard across providers |
-| LRU cache on market data | One Polygon API call caches all prices for the whole day — prevents rate limit hits |
-| Separate process for UI and engine | Complete decoupling — restart either without affecting the other |
-
----
 
 ## License
 
